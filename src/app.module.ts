@@ -1,13 +1,16 @@
 import { ApolloDriverConfig, ApolloDriver } from '@nestjs/apollo';
-import { Module } from '@nestjs/common';
+import { CacheModule, Module } from '@nestjs/common';
 import { GraphQLModule } from '@nestjs/graphql';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { UsersModule } from './users/users.module';
+import { UserModule } from './user/user.module';
 import { AuthModule } from './auth/auth.module';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { configConstant } from './common/constant/config.constant';
+import * as redisStore from 'cache-manager-redis-store';
+import { RedisCacheModule } from './common/resource/redis-cache/redis-cache.module';
+import { REDIS_CACHE_OPTIONS } from './common/resource/redis-cache/redis.config';
 
 interface appConfigResult {
   apolloServerConfig: {
@@ -34,7 +37,7 @@ const appConfig = (): appConfigResult => {
     MongooseModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: async (config: ConfigService) => ({
-        uri: config.get(configConstant.mongoose.url),
+        uri: config.get(configConstant.database.dev),
         useNewUrlParser: true,
         useUnifiedTopology: true,
       }),
@@ -48,7 +51,22 @@ const appConfig = (): appConfigResult => {
       },
       ...appConfig().apolloServerConfig,
     }),
-    UsersModule,
+    // if you run into issues with redis setup
+    // check your typescript version
+    // down grade from
+    // "cache-manager": "^5.0.1",
+    // "cache-manager-redis-store": "^3.0.1",
+    // down grade to
+    // "cache-manager": "^4.0.0",
+    // "cache-manager-redis-store": "^2.0.0",
+    CacheModule.register({
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-ignore
+      store: redisStore,
+      ...REDIS_CACHE_OPTIONS,
+    }),
+    RedisCacheModule,
+    UserModule,
     AuthModule,
   ],
   controllers: [AppController],
